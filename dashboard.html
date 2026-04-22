@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Carbon Emission Tracker - AI Dashboard | PM1.0, PM2.5, PM10 Monitoring</title>
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header h1 i {
+            margin-right: 12px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .last-update {
+            margin-top: 15px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .refresh-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 15px;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.02);
+        }
+        
+        /* Cards Grid - 5 cards for CO2 + PM1.0 + PM2.5 + PM10 + Temp */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .card-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .card-unit {
+            font-size: 14px;
+            color: #999;
+            font-weight: normal;
+        }
+        
+        .card-icon {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 40px;
+            opacity: 0.15;
+        }
+        
+        /* Quality Badges */
+        .quality-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        
+        .badge-good { background: #4CAF50; color: white; }
+        .badge-moderate { background: #FFC107; color: #333; }
+        .badge-unhealthy { background: #FF9800; color: white; }
+        .badge-hazardous { background: #f44336; color: white; }
+        
+        /* Chart Containers */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chart-title i {
+            color: #667eea;
+            font-size: 20px;
+        }
+        
+        canvas {
+            max-height: 280px;
+        }
+        
+        /* AI Section */
+        .ai-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            color: white;
+        }
+        
+        .ai-section h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        
+        .prediction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .prediction-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .prediction-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .prediction-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .prediction-unit {
+            font-size: 14px;
+            font-weight: normal;
+        }
+        
+        .prediction-advice {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            font-size: 13px;
+        }
+        
+        .confidence-bar {
+            margin-top: 12px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        /* Table Container */
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        /* Status */
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        
+        /* Alert */
+        .alert {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .alert i { font-size: 22px; }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .card-value { font-size: 28px; }
+            .prediction-value { font-size: 28px; }
+            body { padding: 12px; }
+            .charts-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <i class="fas fa-chart-line"></i> 
+                Carbon Emission & Particulate Matter Tracker
+            </h1>
+            <div class="subtitle">
+                <i class="fas fa-map-marker-alt"></i> Urban Air Quality Monitoring | PM1.0 · PM2.5 · PM10
+                <span class="status-dot status-online"></span> Live
+            </div>
+            <div class="last-update">
+                <i class="fas fa-sync-alt"></i> 
+                Last updated: <span id="lastUpdateTime">--</span>
+                <button class="refresh-btn" onclick="fetchData()">
+                    <i class="fas fa-refresh"></i> Refresh Now
+                </button>
+            </div>
+        </div>
+        
+        <!-- Alert Box -->
+        <div id="alertBox" class="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="alertMessage"></span>
+        </div>
+        
+        <!-- Stats Cards - 5 Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <i class="fas fa-smog card-icon"></i>
+                <div class="card-title">CO₂ CONCENTRATION</div>
+                <div class="card-value">
+                    <span id="co2Value">--</span>
+                    <span class="card-unit">ppm</span>
+                </div>
+                <div id="co2Badge" class="quality-badge">--</div>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-microscope card-icon"></i>
+                <div class="card-title">PM1.0 (Ultrafine)</div>
+                <div class="card-value">
+                    <span id="pm10Value">--</span>
+                    <span class="card-unit">µg/m³</span>
+                </div>
+                <div id="pm10Badge" class="quality-badge">--</div>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-lungs card-icon"></i>
+                <div class="card-title">PM2.5 (Fine)</div>
+                <div class="card-value">
+                    <span id="pm25Value">--</span>
+                    <span class="card-unit">µg/m³</span>
+                </div>
+                <div id="pm25Badge" class="quality-badge">--</div>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-dust card-icon"></i>
+                <div class="card-title">PM10 (Coarse)</div>
+                <div class="card-value">
+                    <span id="pm100Value">--</span>
+                    <span class="card-unit">µg/m³</span>
+                </div>
+                <div id="pm100Badge" class="quality-badge">--</div>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-thermometer-half card-icon"></i>
+                <div class="card-title">TEMPERATURE</div>
+                <div class="card-value">
+                    <span id="tempValue">--</span>
+                    <span class="card-unit">°C</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row -->
+        <div class="charts-row">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-line"></i> CO₂ Trend (Last 24 Readings)
+                </div>
+                <canvas id="co2Chart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i> Particulate Matter Comparison
+                </div>
+                <canvas id="pmChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- AI Predictions Section -->
+        <div class="ai-section">
+            <h2><i class="fas fa-robot"></i> AI-Powered Predictive Analysis</h2>
+            <p>Machine learning forecast for next hour based on historical patterns</p>
+            
+            <div class="prediction-grid">
+                <div class="prediction-card">
+                    <div class="prediction-label">Predicted CO₂ (1 hour)</div>
+                    <div class="prediction-value">
+                        <span id="predCO2">--</span>
+                        <span class="prediction-unit">ppm</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confCO2" style="width: 0%"></div>
+                    </div>
+                    <div class="prediction-advice" id="adviceCO2">--</div>
+                </div>
+                
+                <div class="prediction-card">
+                    <div class="prediction-label">Predicted PM2.5 (1 hour)</div>
+                    <div class="prediction-value">
+                        <span id="predPM25">--</span>
+                        <span class="prediction-unit">µg/m³</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confPM25" style="width: 0%"></div>
+                    </div>
+                    <div class="prediction-advice" id="advicePM25">--</div>
+                </div>
+                
+                <div class="prediction-card">
+                    <div class="prediction-label">Air Quality Index (AQI)</div>
+                    <div class="prediction-value">
+                        <span id="aqiValue">--</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confAQI" style="width: 0%"></div>
+                    </div>
+                    <div class="prediction-advice" id="adviceAQI">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Table -->
+        <div class="table-container">
+            <div class="chart-title">
+                <i class="fas fa-database"></i> Historical Data Log
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>CO₂ (ppm)</th>
+                        <th>PM1.0 (µg/m³)</th>
+                        <th>PM2.5 (µg/m³)</th>
+                        <th>PM10 (µg/m³)</th>
+                        <th>Temp (°C)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" style="text-align: center;">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ========== CONFIGURATION ==========
+        const GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbyObBSq9vA76xvH5t9ID1rbsvpF9jRYjMqwt_cV_cVQRd3fP9ky5vOkocQ5CoyA1e-U/exec";
+        
+        let co2Chart = null;
+        let pmChart = null;
+        let allData = [];
+        
+        // ========== QUALITY THRESHOLDS ==========
+        const thresholds = {
+            co2: { good: 450, moderate: 800, unhealthy: 1000, hazardous: 1500 },
+            pm1: { good: 10, moderate: 20, unhealthy: 35, hazardous: 50 },
+            pm25: { good: 12, moderate: 35, unhealthy: 55, hazardous: 150 },
+            pm10: { good: 20, moderate: 50, unhealthy: 100, hazardous: 200 }
+        };
+        
+        // ========== HELPER FUNCTIONS ==========
+        function getQualityLevel(value, type) {
+            const t = thresholds[type];
+            if (!t) return { text: 'Unknown', class: 'badge-moderate' };
+            
+            if (value <= t.good) return { text: 'Good', class: 'badge-good' };
+            if (value <= t.moderate) return { text: 'Moderate', class: 'badge-moderate' };
+            if (value <= t.unhealthy) return { text: 'Unhealthy', class: 'badge-unhealthy' };
+            return { text: 'Hazardous', class: 'badge-hazardous' };
+        }
+        
+        function calculateAQI(co2, pm25, pm10) {
+            // Weighted AQI calculation
+            let co2Score = Math.min(100, (co2 / 1200) * 100);
+            let pm25Score = Math.min(100, (pm25 / 55) * 100);
+            let pm10Score = Math.min(100, (pm10 / 100) * 100);
+            
+            let aqi = Math.round((co2Score * 0.3) + (pm25Score * 0.5) + (pm10Score * 0.2));
+            return Math.min(100, Math.max(0, aqi));
+        }
+        
+        function getAQILevel(aqi) {
+            if (aqi <= 25) return { text: 'Good', class: 'badge-good' };
+            if (aqi <= 50) return { text: 'Moderate', class: 'badge-moderate' };
+            if (aqi <= 75) return { text: 'Unhealthy', class: 'badge-unhealthy' };
+            return { text: 'Hazardous', class: 'badge-hazardous' };
+        }
+        
+        function getAdvice(co2, pm25, pm10) {
+            if (co2 > 1000 || pm25 > 55 || pm10 > 100) {
+                return "⚠️ HAZARDOUS: Close windows, use air purifier, limit outdoor activities!";
+            } else if (co2 > 800 || pm25 > 35 || pm10 > 50) {
+                return "⚠️ UNHEALTHY: Consider ventilation, sensitive groups should wear masks.";
+            } else if (co2 > 600 || pm25 > 20 || pm10 > 30) {
+                return "⚠️ MODERATE: Monitor air quality, reduce prolonged outdoor exposure.";
+            } else {
+                return "✅ GOOD: Air quality is healthy. Enjoy outdoor activities!";
+            }
+        }
+        
+        // ========== AI PREDICTION MODEL ==========
+        function predictNextValue(data, field) {
+            if (!data || data.length < 5) return null;
+            
+            let values = data.slice(-10).map(d => parseFloat(d[field]) || 0).filter(v => v > 0);
+            if (values.length < 3) return null;
+            
+            // Simple linear regression for trend
+            let n = values.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += values[i];
+                sumXY += i * values[i];
+                sumX2 += i * i;
+            }
+            
+            let slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            let intercept = (sumY - slope * sumX) / n;
+            
+            let prediction = slope * n + intercept;
+            
+            // Apply constraints based on field
+            if (field === 'co2') prediction = Math.max(350, Math.min(2000, prediction));
+            if (field === 'pm2_5' || field === 'pm10') prediction = Math.max(0, Math.min(300, prediction));
+            if (field === 'pm1_0') prediction = Math.max(0, Math.min(100, prediction));
+            
+            // Calculate confidence based on R-squared
+            let ssRes = 0, ssTot = 0;
+            let meanY = sumY / n;
+            for (let i = 0; i < n; i++) {
+                let pred = slope * i + intercept;
+                ssRes += Math.pow(values[i] - pred, 2);
+                ssTot += Math.pow(values[i] - meanY, 2);
+            }
+            let rSquared = 1 - (ssRes / ssTot);
+            let confidence = Math.max(30, Math.min(95, Math.round(rSquared * 100)));
+            
+            return { value: Math.round(prediction), confidence: confidence };
+        }
+        
+        // ========== FETCH DATA FROM GOOGLE SHEETS ==========
+        async function fetchData() {
+            try {
+                console.log("Fetching data from Google Sheets...");
+                
+                const response = await fetch(GOOGLE_SHEETS_URL);
+                const data = await response.json();
+                
+                if (!data || data.length === 0) {
+                    console.log("No data available");
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7">No data available yet. Waiting for ESP32 to send data...</td></tr>';
+                    return;
+                }
+                
+                allData = data;
+                console.log(`Received ${data.length} records`);
+                
+                // Get latest data point
+                const latest = data[data.length - 1];
+                
+                // Update cards
+                document.getElementById('co2Value').innerText = latest.co2 || latest.CO2 || '--';
+                document.getElementById('pm10Value').innerText = latest.pm1_0 || latest.PM1_0 || latest.pm1 || '--';
+                document.getElementById('pm25Value').innerText = latest.pm2_5 || latest.PM2_5 || latest.pm25 || '--';
+                document.getElementById('pm100Value').innerText = latest.pm10 || latest.PM10 || '--';
+                document.getElementById('tempValue').innerText = latest.temperature || latest.Temperature || '--';
+                
+                // Update badges
+                const co2Val = parseFloat(latest.co2 || latest.CO2 || 0);
+                const pm1Val = parseFloat(latest.pm1_0 || latest.PM1_0 || latest.pm1 || 0);
+                const pm25Val = parseFloat(latest.pm2_5 || latest.PM2_5 || latest.pm25 || 0);
+                const pm10Val = parseFloat(latest.pm10 || latest.PM10 || 0);
+                
+                const co2Quality = getQualityLevel(co2Val, 'co2');
+                const pm1Quality = getQualityLevel(pm1Val, 'pm1');
+                const pm25Quality = getQualityLevel(pm25Val, 'pm25');
+                const pm10Quality = getQualityLevel(pm10Val, 'pm10');
+                
+                document.getElementById('co2Badge').innerHTML = co2Quality.text;
+                document.getElementById('co2Badge').className = `quality-badge ${co2Quality.class}`;
+                document.getElementById('pm10Badge').innerHTML = pm1Quality.text;
+                document.getElementById('pm10Badge').className = `quality-badge ${pm1Quality.class}`;
+                document.getElementById('pm25Badge').innerHTML = pm25Quality.text;
+                document.getElementById('pm25Badge').className = `quality-badge ${pm25Quality.class}`;
+                document.getElementById('pm100Badge').innerHTML = pm10Quality.text;
+                document.getElementById('pm100Badge').className = `quality-badge ${pm10Quality.class}`;
+                
+                // Calculate AQI
+                const aqi = calculateAQI(co2Val, pm25Val, pm10Val);
+                const aqiLevel = getAQILevel(aqi);
+                document.getElementById('aqiValue').innerHTML = `${aqi} <span style="font-size:14px;">/100</span>`;
+                
+                // Check for alerts
+                if (co2Val > 1000 || pm25Val > 55 || pm10Val > 100) {
+                    const alertBox = document.getElementById('alertBox');
+                    alertBox.style.display = 'flex';
+                    document.getElementById('alertMessage').innerHTML = getAdvice(co2Val, pm25Val, pm10Val);
+                } else {
+                    document.getElementById('alertBox').style.display = 'none';
+                }
+                
+                // Update timestamp
+                document.getElementById('lastUpdateTime').innerHTML = new Date().toLocaleString();
+                
+                // Run AI predictions
+                runAIPredictions(data);
+                
+                // Update table
+                updateTable(data);
+                
+                // Update charts
+                updateCharts(data);
+                
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7">Error loading data. Check console for details.</td></tr>';
+            }
+        }
+        
+        function runAIPredictions(data) {
+            // Predict CO2
+            const co2Pred = predictNextValue(data, 'co2');
+            if (co2Pred) {
+                document.getElementById('predCO2').innerHTML = co2Pred.value;
+                document.getElementById('confCO2').style.width = `${co2Pred.confidence}%`;
+                
+                let advice = "";
+                if (co2Pred.value > 1000) advice = "⚠️ Predicted high CO₂ - prepare ventilation";
+                else if (co2Pred.value > 800) advice = "⚠️ CO₂ may rise - monitor closely";
+                else advice = "✅ CO₂ expected to remain normal";
+                document.getElementById('adviceCO2').innerHTML = advice;
+            }
+            
+            // Predict PM2.5
+            const pm25Pred = predictNextValue(data, 'pm2_5');
+            if (pm25Pred) {
+                document.getElementById('predPM25').innerHTML = pm25Pred.value;
+                document.getElementById('confPM25').style.width = `${pm25Pred.confidence}%`;
+                
+                let advice = "";
+                if (pm25Pred.value > 55) advice = "⚠️ Predicted unhealthy PM2.5 - limit outdoor activities";
+                else if (pm25Pred.value > 35) advice = "⚠️ PM2.5 may increase - sensitive groups take care";
+                else advice = "✅ PM2.5 predicted to stay within safe levels";
+                document.getElementById('advicePM25').innerHTML = advice;
+            }
+            
+            // Get latest values for AQI prediction
+            const latest = data[data.length - 1];
+            const co2Val = parseFloat(latest.co2 || latest.CO2 || 0);
+            const pm25Val = parseFloat(latest.pm2_5 || latest.PM2_5 || latest.pm25 || 0);
+            const pm10Val = parseFloat(latest.pm10 || latest.PM10 || 0);
+            const currentAQI = calculateAQI(co2Val, pm25Val, pm10Val);
+            
+            // Predict next AQI (simple trend)
+            let predictedAQI = currentAQI;
+            if (data.length > 3) {
+                let prevAQIs = [];
+                for (let i = data.length - 5; i < data.length; i++) {
+                    if (data[i]) {
+                        let prevCo2 = parseFloat(data[i].co2 || data[i].CO2 || 0);
+                        let prevPm25 = parseFloat(data[i].pm2_5 || data[i].PM2_5 || data[i].pm25 || 0);
+                        let prevPm10 = parseFloat(data[i].pm10 || data[i].PM10 || 0);
+                        prevAQIs.push(calculateAQI(prevCo2, prevPm25, prevPm10));
+                    }
+                }
+                if (prevAQIs.length > 1) {
+                    let trend = prevAQIs[prevAQIs.length - 1] - prevAQIs[0];
+                    predictedAQI = Math.min(100, Math.max(0, currentAQI + Math.round(trend * 0.3)));
+                }
+            }
+            
+            document.getElementById('confAQI').style.width = "75%";
+            let aqiAdvice = "";
+            if (predictedAQI > 75) aqiAdvice = "⚠️ Air quality predicted to worsen - prepare precautions";
+            else if (predictedAQI > 50) aqiAdvice = "⚠️ Moderate air quality expected - monitor conditions";
+            else aqiAdvice = "✅ Good air quality expected to continue";
+            document.getElementById('adviceAQI').innerHTML = aqiAdvice;
+        }
+        
+        function updateTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            // Show last 20 records (newest first)
+            const last20 = [...data].reverse().slice(0, 20);
+            
+            if (last20.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7">No data available</td></tr>';
+                return;
+            }
+            
+            last20.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                let timestamp = row.Timestamp || row.timestamp || '--';
+                if (timestamp !== '--' && timestamp !== 'undefined') {
+                    timestamp = new Date(timestamp).toLocaleString();
+                }
+                
+                const co2Val = parseFloat(row.co2 || row.CO2 || 0);
+                const pm25Val = parseFloat(row.pm2_5 || row.PM2_5 || row.pm25 || 0);
+                
+                let status = "✅ Good";
+                if (co2Val > 1000 || pm25Val > 55) status = "🔴 Hazardous";
+                else if (co2Val > 800 || pm25Val > 35) status = "🟠 Unhealthy";
+                else if (co2Val > 600 || pm25Val > 20) status = "🟡 Moderate";
+                
+                tr.innerHTML = `
+                    <td>${timestamp}</td>
+                    <td>${row.co2 || row.CO2 || '--'}</td>
+                    <td>${row.pm1_0 || row.PM1_0 || row.pm1 || '--'}</td>
+                    <td>${row.pm2_5 || row.PM2_5 || row.pm25 || '--'}</td>
+                    <td>${row.pm10 || row.PM10 || '--'}</td>
+                    <td>${row.temperature || row.Temperature || '--'}</td>
+                    <td>${status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function updateCharts(data) {
+            // Get last 24 records
+            const last24 = data.slice(-24);
+            
+            const labels = last24.map((d, i) => {
+                const ts = d.Timestamp || d.timestamp;
+                if (ts && ts !== 'undefined') {
+                    return new Date(ts).toLocaleTimeString();
+                }
+                return `${i+1}`;
+            });
+            
+            const co2Values = last24.map(d => parseFloat(d.co2 || d.CO2 || 0));
+            const pm1Values = last24.map(d => parseFloat(d.pm1_0 || d.PM1_0 || d.pm1 || 0));
+            const pm25Values = last24.map(d => parseFloat(d.pm2_5 || d.PM2_5 || d.pm25 || 0));
+            const pm10Values = last24.map(d => parseFloat(d.pm10 || d.PM10 || 0));
+            
+            // Update CO2 Chart
+            if (co2Chart) co2Chart.destroy();
+            const ctx1 = document.getElementById('co2Chart').getContext('2d');
+            co2Chart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'CO₂ (ppm)',
+                        data: co2Values,
+                        borderColor: '#ff6b6b',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'CO₂ (ppm)' }, min: 300, max: 2000 }
+                    }
+                }
+            });
+            
+            // Update PM Comparison Chart
+            if (pmChart) pmChart.destroy();
+            const ctx2 = document.getElementById('pmChart').getContext('2d');
+            pmChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'PM1.0 (µg/m³)',
+                            data: pm1Values,
+                            borderColor: '#4ecdc4',
+                            backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 2
+                        },
+                        {
+                            label: 'PM2.5 (µg/m³)',
+                            data: pm25Values,
+                            borderColor: '#ffe66d',
+                            backgroundColor: 'rgba(255, 230, 109, 0.1)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 2
+                        },
+                        {
+                            label: 'PM10 (µg/m³)',
+                            data: pm10Values,
+                            borderColor: '#ff6b6b',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Concentration (µg/m³)' }, min: 0, max: 200 }
+                    }
+                }
+            });
+        }
+        
+        // ========== AUTO REFRESH ==========
+        setInterval(fetchData, 30000);  // Refresh every 30 seconds
+        fetchData();  // Initial load
+        
+    </script>
+</body>
+</html>
